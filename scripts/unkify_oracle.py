@@ -1,8 +1,12 @@
 #!/usr/bin/env python -O
 
+import os
+import sys
+
 from argparse import ArgumentParser
 from collections import Counter
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(os.path.join(__file__, os.pardir))))
 from rnng.oracle import DiscriminativeOracle, GenerativeOracle
 from rnng.actions import NonTerminalAction
 
