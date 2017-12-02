@@ -37,7 +37,7 @@ class Oracle(metaclass=abc.ABCMeta):
 
     @classmethod
     @abc.abstractmethod
-    def from_parsed_sent(cls, parsed_sent: Tree):
+    def from_parsed_sentence(cls, parsed_sent: Tree):
         pass
 
     @classmethod
@@ -99,7 +99,7 @@ class DiscriminativeOracle(Oracle):
         return '\n'.join(out)
 
     @classmethod
-    def from_parsed_sent(cls, parsed_sent: Tree) -> 'DiscriminativeOracle':
+    def from_parsed_sentence(cls, parsed_sent: Tree) -> 'DiscriminativeOracle':
         actions = cls.get_actions(parsed_sent)
         words, pos_tags = zip(*parsed_sent.pos())
         return cls(actions, list(pos_tags), list(words))
@@ -173,7 +173,7 @@ class GenerativeOracle(Oracle):
         return '\n'.join(out)
 
     @classmethod
-    def from_parsed_sent(cls, parsed_sent: Tree) -> 'GenerativeOracle':
+    def from_parsed_sentence(cls, parsed_sent: Tree) -> 'GenerativeOracle':
         actions = cls.get_actions(parsed_sent)
         _, pos_tags = zip(*parsed_sent.pos())
         return cls(actions, list(pos_tags))

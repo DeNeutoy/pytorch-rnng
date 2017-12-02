@@ -25,7 +25,7 @@ class TestDiscOracle:
         expected_pos_tags = ['NNP', 'VBZ', 'NNP']
         expected_words = ['John', 'loves', 'Mary']
 
-        oracle = DiscriminativeOracle.from_parsed_sent(Tree.fromstring(s))
+        oracle = DiscriminativeOracle.from_parsed_sentence(Tree.fromstring(s))
 
         assert isinstance(oracle, DiscriminativeOracle)
         assert oracle.actions == expected_actions
@@ -71,7 +71,7 @@ class TestGenOracle:
         expected_words = ['John', 'loves', 'Mary']
         expected_pos_tags = ['NNP', 'VBZ', 'NNP']
 
-        oracle = GenerativeOracle.from_parsed_sent(Tree.fromstring(s))
+        oracle = GenerativeOracle.from_parsed_sentence(Tree.fromstring(s))
 
         assert isinstance(oracle, GenerativeOracle)
         assert oracle.actions == expected_actions
@@ -113,7 +113,7 @@ class TestOracleDataset:
                ReduceAction()}
 
     def test_init(self):
-        oracles = [DiscriminativeOracle.from_parsed_sent(Tree.fromstring(s))
+        oracles = [DiscriminativeOracle.from_parsed_sentence(Tree.fromstring(s))
                    for s in self.bracketed_sents]
 
         dataset = OracleDataset(oracles)
@@ -128,7 +128,7 @@ class TestOracleDataset:
         assert set(dataset.action_store) == self.actions
 
     def test_getitem(self):
-        oracles = [DiscriminativeOracle.from_parsed_sent(Tree.fromstring(s))
+        oracles = [DiscriminativeOracle.from_parsed_sentence(Tree.fromstring(s))
                    for s in self.bracketed_sents]
 
         dataset = OracleDataset(oracles)
@@ -137,7 +137,7 @@ class TestOracleDataset:
         assert oracles[1] is dataset[1]
 
     def test_len(self):
-        oracles = [DiscriminativeOracle.from_parsed_sent(Tree.fromstring(s))
+        oracles = [DiscriminativeOracle.from_parsed_sentence(Tree.fromstring(s))
                    for s in self.bracketed_sents]
 
         dataset = OracleDataset(oracles)

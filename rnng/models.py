@@ -262,7 +262,7 @@ class DiscriminativeRnnGrammar(RnnGrammar):
             raise KeyError(f"unknown action '{action}' encountered")
 
         self.verify_push_non_terminal()
-        self._push_nt(nonterm)
+        self._push_non_terminal(nonterm)
         self._append_history(action)
 
     def shift(self) -> None:
@@ -357,7 +357,7 @@ class DiscriminativeRnnGrammar(RnnGrammar):
         self._num_open_non_terminals -= 1
         assert self._num_open_non_terminals >= 0
 
-    def _push_nt(self, nonterm: NonTerminalLabel) -> None:
+    def _push_non_terminal(self, nonterm: NonTerminalLabel) -> None:
         nid = self.nt2id[nonterm]
         assert isinstance(self._nt_emb, Variable)
         assert 0 <= nid < self._nt_emb.size(0)

@@ -33,7 +33,10 @@ class ItemStore(Mapping[T, int]):
 
 
 class ParseTreeMapper:
-    def __init__(self, word2id: Mapping[Word, WordId], nt2id: Mapping[NonTerminalLabel, NTId]) -> None:
+    def __init__(self,
+                 word2id: Mapping[Word, WordId],
+                 nt2id: Mapping[NonTerminalLabel, NTId]) -> None:
+
         words, word_ids = tuple(zip(*word2id.items()))
         nt_labels, nt_ids = tuple(zip(*nt2id.items()))
 

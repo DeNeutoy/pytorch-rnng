@@ -16,5 +16,5 @@ args = parser.parse_args()
 treebank = Treebank(args.corpus, lowercase=args.lowercase)
 for parsed_sent in treebank.parsed_sentences():
     oracle_class = GenerativeOracle if args.generative else DiscriminativeOracle
-    oracle = oracle_class.from_parsed_sent(parsed_sent)
+    oracle = oracle_class.from_parsed_sentence(parsed_sent)
     print(oracle, end='\n\n')
