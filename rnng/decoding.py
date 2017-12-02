@@ -3,10 +3,10 @@ from typing import List, Tuple
 from torch.autograd import Variable
 
 from rnng.actions import Action
-from rnng.models import RNNGrammar
+from rnng.models import RnnGrammar
 
 
-def greedy_decode(parser: RNNGrammar) -> List[Tuple[Action, Variable]]:
+def greedy_decode(parser: RnnGrammar) -> List[Tuple[Action, Variable]]:
     result = []
     while not parser.finished:
         log_probs = parser()

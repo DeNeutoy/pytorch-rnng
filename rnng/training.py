@@ -10,12 +10,12 @@ from torch.nn.utils import clip_grad_norm
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 
-from rnng.models import RNNGrammar
+from rnng.models import RnnGrammar
 from rnng.oracle import Oracle
 from rnng.utils import MeanAggregate
 
 
-def run_batch(parser: RNNGrammar, oracle: Oracle) -> Variable:
+def run_batch(parser: RnnGrammar, oracle: Oracle) -> Variable:
     parser.start(list(zip(oracle.words, oracle.pos_tags)))
     log_probs = []
     for action in oracle.actions:
@@ -27,7 +27,7 @@ def run_batch(parser: RNNGrammar, oracle: Oracle) -> Variable:
     return F.nll_loss(outputs, targets)
 
 
-def train(loader: DataLoader, parser: RNNGrammar, optimizer: Optimizer,
+def train(loader: DataLoader, parser: RnnGrammar, optimizer: Optimizer,
           log_interval: int = 100, epoch_num: int = 1,
           grad_clip: float = 5.) -> None:
     parser.train()
@@ -64,7 +64,7 @@ def train(loader: DataLoader, parser: RNNGrammar, optimizer: Optimizer,
     print(f'Epoch {epoch_num} done in {epoch_runtime:.2f}s', file=sys.stderr)
 
 
-def evaluate(loader: DataLoader, parser: RNNGrammar) -> float:
+def evaluate(loader: DataLoader, parser: RnnGrammar) -> float:
     parser.eval()
     loss = MeanAggregate()
     for oracle in loader:
@@ -73,7 +73,7 @@ def evaluate(loader: DataLoader, parser: RNNGrammar) -> float:
     return loss.mean
 
 
-def train_early_stopping(train_loader: DataLoader, dev_loader: DataLoader, parser: RNNGrammar,
+def train_early_stopping(train_loader: DataLoader, dev_loader: DataLoader, parser: RnnGrammar,
                          optimizer: Optimizer, tol: float = 1e-4, patience: int = 20,
                          eval_interval: int = 1, on_ppl: bool = True, save_to: str = None,
                          **kwargs) -> None:

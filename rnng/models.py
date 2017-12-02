@@ -35,37 +35,37 @@ class StackLSTM(nn.Module, Sized):
         self.num_layers = num_layers
         self.dropout = dropout
         self.lstm = nn.LSTM(input_size, hidden_size, num_layers=num_layers, dropout=dropout)
-        self.h0 = nn.Parameter(torch.Tensor(num_layers, self.BATCH_SIZE, hidden_size))
-        self.c0 = nn.Parameter(torch.Tensor(num_layers, self.BATCH_SIZE, hidden_size))
+        self.h0 = nn.Parameter(torch.FloatTensor(num_layers, self.BATCH_SIZE, hidden_size))
+        self.c0 = nn.Parameter(torch.FloatTensor(num_layers, self.BATCH_SIZE, hidden_size))
         init_states = (self.h0, self.c0)
-        self._states_hist = [init_states]
-        self._outputs_hist = []  # type: List[Variable]
+        self._state_history = [init_states]
+        self._output_history = []  # type: List[Variable]
 
     def forward(self, inputs: Variable) -> Tuple[Variable, Variable]:
         # inputs: input_size
-        assert self._states_hist
+        assert self._state_history
 
         # Set seq_len and batch_size to 1
         inputs = inputs.view(self.SEQ_LEN, self.BATCH_SIZE, inputs.numel())
-        next_outputs, next_states = self.lstm(inputs, self._states_hist[-1])
-        self._states_hist.append(next_states)
-        self._outputs_hist.append(next_outputs)
+        next_outputs, next_states = self.lstm(inputs, self._state_history[-1])
+        self._state_history.append(next_states)
+        self._output_history.append(next_outputs)
         return next_states
 
     def push(self, *args, **kwargs):
         return self(*args, **kwargs)
 
     def pop(self) -> Tuple[Variable, Variable]:
-        if len(self._states_hist) > 1:
-            self._outputs_hist.pop()
-            return self._states_hist.pop()
+        if len(self._state_history) > 1:
+            self._output_history.pop()
+            return self._state_history.pop()
         else:
             raise EmptyStackError()
 
     @property
     def top(self) -> Variable:
         # outputs: hidden_size
-        return self._outputs_hist[-1].squeeze() if self._outputs_hist else None
+        return self._output_history[-1].squeeze() if self._output_history else None
 
     def __repr__(self) -> str:
         res = ('{}(input_size={input_size}, hidden_size={hidden_size}, '
@@ -73,7 +73,7 @@ class StackLSTM(nn.Module, Sized):
         return res.format(self.__class__.__name__, **self.__dict__)
 
     def __len__(self):
-        return len(self._outputs_hist)
+        return len(self._output_history)
 
 
 def log_softmax(inputs: Variable, restrictions=None) -> Variable:
@@ -99,7 +99,7 @@ class IllegalActionError(Exception):
     pass
 
 
-class RNNGrammar(nn.Module, metaclass=abc.ABCMeta):
+class RnnGrammar(nn.Module, metaclass=abc.ABCMeta):
     @property
     @abc.abstractmethod
     def stack_buffer(self) -> Sequence[Union[Tree, Word]]:
@@ -141,7 +141,7 @@ class RNNGrammar(nn.Module, metaclass=abc.ABCMeta):
         pass
 
 
-class DiscRNNGrammar(RNNGrammar):
+class DiscriminativeRnnGrammar(RnnGrammar):
     MAX_OPEN_NT = 100
 
     def __init__(self, word2id: Mapping[Word, WordId], pos2id: Mapping[POSTag, POSId],

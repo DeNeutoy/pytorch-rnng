@@ -11,7 +11,7 @@ class Treebank:
         self.lowercase = lowercase
         self._reader = BracketParseCorpusReader(*os.path.split(corpus_file))
 
-    def parsed_sents(self) -> Iterable[Tree]:
+    def parsed_sentences(self) -> Iterable[Tree]:
         if self.lowercase:
             return (self.lowercase_leaves(parsed_sent)
                     for parsed_sent in self._reader.parsed_sents())

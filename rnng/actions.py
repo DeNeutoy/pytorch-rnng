@@ -44,16 +44,16 @@ class ShiftAction(Action):
         return hash(str(self))
 
     def verify_legal_on(self, parser) -> None:
-        from rnng.models import DiscRNNGrammar
+        from rnng.models import DiscriminativeRnnGrammar
 
-        if not isinstance(parser, DiscRNNGrammar):
+        if not isinstance(parser, DiscriminativeRnnGrammar):
             raise TypeError(f'{self} action is not legal for parser type {type(parser)}')
         parser.verify_shift()
 
     def execute_on(self, parser) -> None:
-        from rnng.models import DiscRNNGrammar
+        from rnng.models import DiscriminativeRnnGrammar
 
-        if not isinstance(parser, DiscRNNGrammar):
+        if not isinstance(parser, DiscriminativeRnnGrammar):
             raise TypeError(f'{self} action is not legal for parser type {type(parser)}')
         parser.shift()
 

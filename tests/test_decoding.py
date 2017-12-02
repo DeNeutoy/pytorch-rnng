@@ -1,7 +1,7 @@
 import torch
 from torch.autograd import Variable
 
-from rnng.models import DiscRNNGrammar
+from rnng.models import DiscriminativeRnnGrammar
 from rnng.utils import ItemStore
 from rnng.actions import ShiftAction, ReduceAction, NonTerminalAction
 from rnng.decoding import greedy_decode
@@ -34,7 +34,7 @@ def test_greedy_decode(mocker):
     retvals = [Variable(
         torch.zeros(len(action_store)).scatter_(0, torch.LongTensor([action_store[a]]), 1))
                 for a in correct_actions]
-    parser = DiscRNNGrammar(word2id, pos2id, nt2id, action_store)
+    parser = DiscriminativeRnnGrammar(word2id, pos2id, nt2id, action_store)
     parser.start(list(zip(words, pos_tags)))
     mocker.patch.object(parser, 'forward', side_effect=retvals)
 

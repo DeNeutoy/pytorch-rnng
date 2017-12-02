@@ -3,8 +3,8 @@
 from argparse import ArgumentParser
 from collections import Counter
 
-from rnng.actions import GenAction, NTAction
 from rnng.oracle import DiscOracle, GenOracle
+from rnng.actions import NonTerminalAction
 
 
 def read_oracles_from_file(oracle_class, filename):
@@ -33,13 +33,13 @@ vocab_nt = set()
 for oracle in oracles:
     vocab_words.update([w for w in oracle.words if counter[w] >= args.min_count])
     vocab_pos.update(oracle.pos_tags)
-    vocab_nt.update([a.label for a in oracle.actions if isinstance(a, NTAction)])
+    vocab_nt.update([a.label for a in oracle.actions if isinstance(a, NonTerminalAction)])
 
 oracles = read_oracles_from_file(oracle_class, args.oracle_file)
 for oracle in oracles:
     if set(oracle.pos_tags) - vocab_pos:
         continue
-    nt_labels = {a.label for a in oracle.actions if isinstance(a, NTAction)}
+    nt_labels = {a.label for a in oracle.actions if isinstance(a, NonTerminalAction)}
     if nt_labels - vocab_nt:
         continue
     oracle.words = [w if w in vocab_words else 'UNK' for w in oracle.words]
