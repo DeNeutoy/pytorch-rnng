@@ -1,6 +1,6 @@
 import pytest
 
-from rnng.actions import ShiftAction, ReduceAction, NTAction, GenAction
+from rnng.actions import ShiftAction, ReduceAction, NonTerminalAction, GenerateAction
 
 
 class TestShiftAction:
@@ -56,29 +56,29 @@ class TestNTAction:
 
     def test_to_string(self):
         label = 'NP'
-        a = NTAction(label)
+        a = NonTerminalAction(label)
         assert str(a) == self.as_str.format(label=label)
 
     def test_hash(self):
         label = 'NP'
-        a = NTAction(label)
+        a = NonTerminalAction(label)
         assert hash(a) == hash(self.as_str.format(label=label))
 
     def test_eq(self):
-        a = NTAction('NP')
-        assert a == NTAction(a.label)
-        assert a != NTAction('asdf')
+        a = NonTerminalAction('NP')
+        assert a == NonTerminalAction(a.label)
+        assert a != NonTerminalAction('asdf')
         assert a != ShiftAction()
 
     def test_from_string(self):
         label = 'NP'
-        a = NTAction.from_string(self.as_str.format(label=label))
-        assert isinstance(a, NTAction)
+        a = NonTerminalAction.from_string(self.as_str.format(label=label))
+        assert isinstance(a, NonTerminalAction)
         assert a.label == label
 
     def test_from_invalid_string(self):
         with pytest.raises(ValueError):
-            NTAction.from_string('asdf')
+            NonTerminalAction.from_string('asdf')
 
 
 class TestGenAction:
@@ -86,26 +86,26 @@ class TestGenAction:
 
     def test_to_string(self):
         word = 'asdf'
-        a = GenAction(word)
+        a = GenerateAction(word)
         assert str(a) == self.as_str.format(word=word)
 
     def test_hash(self):
         word = 'asdf'
-        a = GenAction(word)
+        a = GenerateAction(word)
         assert hash(a) == hash(self.as_str.format(word=word))
 
     def test_eq(self):
-        a = GenAction('asdf')
-        assert a == GenAction(a.word)
-        assert a != GenAction('fdsa')
+        a = GenerateAction('asdf')
+        assert a == GenerateAction(a.word)
+        assert a != GenerateAction('fdsa')
         assert a != ReduceAction()
 
     def test_from_string(self):
         word = 'asdf'
-        a = GenAction.from_string(self.as_str.format(word=word))
-        assert isinstance(a, GenAction)
+        a = GenerateAction.from_string(self.as_str.format(word=word))
+        assert isinstance(a, GenerateAction)
         assert a.word == word
 
     def test_from_invalid_string(self):
         with pytest.raises(ValueError):
-            GenAction.from_string('asdf')
+            GenerateAction.from_string('asdf')

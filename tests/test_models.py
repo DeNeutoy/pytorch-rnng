@@ -1,12 +1,12 @@
-from nltk.tree import Tree
 import pytest
 import torch
+from nltk.tree import Tree
 from torch.autograd import Variable
 
-from rnng.actions import ShiftAction, ReduceAction, NTAction
 from rnng.models import (DiscRNNGrammar, EmptyStackError, StackLSTM, log_softmax,
-                         IllegalActionError)
+                  IllegalActionError)
 from rnng.utils import ItemStore
+from rnng.actions import ShiftAction, ReduceAction, NonTerminalAction
 
 
 class MockLSTM:
@@ -128,7 +128,7 @@ class TestDiscRNNGrammar:
     pos2id = {'NNP': 0, 'VBZ': 1}
     nt2id = {'S': 2, 'NP': 1, 'VP': 0}
     action_store = ItemStore()
-    actions = [NTAction('S'), NTAction('NP'), NTAction('VP'), ShiftAction(), ReduceAction()]
+    actions = [NonTerminalAction('S'), NonTerminalAction('NP'), NonTerminalAction('VP'), ShiftAction(), ReduceAction()]
     for a in actions:
         action_store.add(a)
 
@@ -143,7 +143,7 @@ class TestDiscRNNGrammar:
 
     def test_init_no_shift_action(self):
         action_store = ItemStore()
-        actions = [NTAction('S'), NTAction('NP'), NTAction('VP'), ReduceAction()]
+        actions = [NonTerminalAction('S'), NonTerminalAction('NP'), NonTerminalAction('VP'), ReduceAction()]
         for a in actions:
             action_store.add(a)
 
@@ -152,7 +152,7 @@ class TestDiscRNNGrammar:
 
     def test_init_no_reduce_action(self):
         action_store = ItemStore()
-        actions = [NTAction('S'), NTAction('NP'), NTAction('VP'), ShiftAction()]
+        actions = [NonTerminalAction('S'), NonTerminalAction('NP'), NonTerminalAction('VP'), ShiftAction()]
         for a in actions:
             action_store.add(a)
 
@@ -236,7 +236,7 @@ class TestDiscRNNGrammar:
         assert len(last) == 0
         assert parser.input_buffer == prev_input_buffer
         assert len(parser.action_history) == 1
-        assert parser.action_history[-1] == NTAction('S')
+        assert parser.action_history[-1] == NonTerminalAction('S')
         assert not parser.finished
 
     def test_do_illegal_push_nt_action(self):
@@ -268,7 +268,7 @@ class TestDiscRNNGrammar:
             parser.push_nt('asdf')
 
     def test_push_known_nt_but_unknown_action(self):
-        actions = [NTAction('NP'), NTAction('VP'), ShiftAction(), ReduceAction()]
+        actions = [NonTerminalAction('NP'), NonTerminalAction('VP'), ShiftAction(), ReduceAction()]
         action_store = ItemStore()
         for a in actions:
             action_store.add(a)
@@ -391,9 +391,9 @@ class TestDiscRNNGrammar:
 
         action_probs = parser().exp().data
 
-        assert action_probs[self.action_store[NTAction('S')]] > 0.
-        assert action_probs[self.action_store[NTAction('NP')]] > 0.
-        assert action_probs[self.action_store[NTAction('VP')]] > 0.
+        assert action_probs[self.action_store[NonTerminalAction('S')]] > 0.
+        assert action_probs[self.action_store[NonTerminalAction('NP')]] > 0.
+        assert action_probs[self.action_store[NonTerminalAction('VP')]] > 0.
         assert -0.001 <= action_probs[self.action_store[ShiftAction()]] <= 0.001
         assert -0.001 <= action_probs[self.action_store[ReduceAction()]] <= 0.001
 

@@ -1,16 +1,15 @@
 import torch
 from torch.autograd import Variable
 
-from rnng.actions import ShiftAction, ReduceAction, NTAction
-from rnng.decoding import greedy_decode
 from rnng.models import DiscRNNGrammar
 from rnng.utils import ItemStore
-
+from rnng.actions import ShiftAction, ReduceAction, NonTerminalAction
+from rnng.decoding import greedy_decode
 
 word2id = {'John': 0, 'loves': 1, 'Mary': 2}
 pos2id = {'NNP': 0, 'VBZ': 1}
 nt2id = {'S': 0, 'NP': 1, 'VP': 2}
-actions = [NTAction('S'), NTAction('NP'), NTAction('VP'), ShiftAction(), ReduceAction()]
+actions = [NonTerminalAction('S'), NonTerminalAction('NP'), NonTerminalAction('VP'), ShiftAction(), ReduceAction()]
 action_store = ItemStore()
 for a in actions:
     action_store.add(a)
@@ -20,13 +19,13 @@ def test_greedy_decode(mocker):
     words = ['John', 'loves', 'Mary']
     pos_tags = ['NNP', 'VBZ', 'NNP']
     correct_actions = [
-        NTAction('S'),
-        NTAction('NP'),
+        NonTerminalAction('S'),
+        NonTerminalAction('NP'),
         ShiftAction(),
         ReduceAction(),
-        NTAction('VP'),
+        NonTerminalAction('VP'),
         ShiftAction(),
-        NTAction('NP'),
+        NonTerminalAction('NP'),
         ShiftAction(),
         ReduceAction(),
         ReduceAction(),

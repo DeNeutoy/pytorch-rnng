@@ -1,22 +1,22 @@
-from nltk.tree import Tree
 import pytest
+from nltk.tree import Tree
 
-from rnng.actions import ShiftAction, ReduceAction, NTAction, GenAction
 from rnng.oracle import DiscOracle, GenOracle, OracleDataset
 from rnng.utils import ItemStore
+from rnng.actions import ShiftAction, ReduceAction, NonTerminalAction, GenerateAction
 
 
 class TestDiscOracle:
     def test_from_parsed_sent(self):
         s = '(S (NP (NNP John)) (VP (VBZ loves) (NP (NNP Mary))))'
         expected_actions = [
-            NTAction('S'),
-            NTAction('NP'),
+            NonTerminalAction('S'),
+            NonTerminalAction('NP'),
             ShiftAction(),
             ReduceAction(),
-            NTAction('VP'),
+            NonTerminalAction('VP'),
             ShiftAction(),
-            NTAction('NP'),
+            NonTerminalAction('NP'),
             ShiftAction(),
             ReduceAction(),
             ReduceAction(),
@@ -40,7 +40,7 @@ class TestDiscOracle:
         assert isinstance(oracle, DiscOracle)
         assert oracle.words == ['asdf', 'fdsa']
         assert oracle.pos_tags == ['NNP', 'VBZ']
-        assert oracle.actions == [NTAction('S'), ShiftAction(), ShiftAction(), ReduceAction()]
+        assert oracle.actions == [NonTerminalAction('S'), ShiftAction(), ShiftAction(), ReduceAction()]
 
     def test_from_string_too_short(self):
         s = 'asdf asdf\nNT(S)\nSHIFT\nSHIFT\nREDUCE'
@@ -53,14 +53,14 @@ class TestGenOracle:
     def test_from_parsed_sent(self):
         s = '(S (NP (NNP John)) (VP (VBZ loves) (NP (NNP Mary))))'
         expected_actions = [
-            NTAction('S'),
-            NTAction('NP'),
-            GenAction('John'),
+            NonTerminalAction('S'),
+            NonTerminalAction('NP'),
+            GenerateAction('John'),
             ReduceAction(),
-            NTAction('VP'),
-            GenAction('loves'),
-            NTAction('NP'),
-            GenAction('Mary'),
+            NonTerminalAction('VP'),
+            GenerateAction('loves'),
+            NonTerminalAction('NP'),
+            GenerateAction('Mary'),
             ReduceAction(),
             ReduceAction(),
             ReduceAction()
@@ -83,7 +83,7 @@ class TestGenOracle:
         assert isinstance(oracle, GenOracle)
         assert oracle.words == ['asdf', 'fdsa']
         assert oracle.pos_tags == ['NNP', 'VBZ']
-        assert oracle.actions == [NTAction('S'), GenAction('asdf'), GenAction('fdsa'),
+        assert oracle.actions == [NonTerminalAction('S'), GenerateAction('asdf'), GenerateAction('fdsa'),
                                   ReduceAction()]
 
     def test_from_string_too_short(self):
@@ -101,7 +101,7 @@ class TestOracleDataset:
     words = {'John', 'loves', 'hates', 'Mary'}
     pos_tags = {'NNP', 'VBZ'}
     nt_labels = {'S', 'NP', 'VP'}
-    actions = {NTAction('S'), NTAction('NP'), NTAction('VP'), ShiftAction(), ReduceAction()}
+    actions = {NonTerminalAction('S'), NonTerminalAction('NP'), NonTerminalAction('VP'), ShiftAction(), ReduceAction()}
 
     def test_init(self):
         oracles = [DiscOracle.from_parsed_sent(Tree.fromstring(s))
