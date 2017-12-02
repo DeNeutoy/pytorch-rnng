@@ -9,7 +9,11 @@ from rnng.decoding import greedy_decode
 word2id = {'John': 0, 'loves': 1, 'Mary': 2}
 pos2id = {'NNP': 0, 'VBZ': 1}
 nt2id = {'S': 0, 'NP': 1, 'VP': 2}
-actions = [NonTerminalAction('S'), NonTerminalAction('NP'), NonTerminalAction('VP'), ShiftAction(), ReduceAction()]
+actions = [NonTerminalAction('S'),
+           NonTerminalAction('NP'),
+           NonTerminalAction('VP'),
+           ShiftAction(),
+           ReduceAction()]
 action_store = ItemStore()
 for a in actions:
     action_store.add(a)
@@ -31,8 +35,7 @@ def test_greedy_decode(mocker):
         ReduceAction(),
         ReduceAction(),
     ]
-    retvals = [Variable(
-        torch.zeros(len(action_store)).scatter_(0, torch.LongTensor([action_store[a]]), 1))
+    retvals = [Variable(torch.zeros(len(action_store)).scatter_(0, torch.LongTensor([action_store[a]]), 1))
                 for a in correct_actions]
     parser = DiscriminativeRnnGrammar(word2id, pos2id, nt2id, action_store)
     parser.start(list(zip(words, pos_tags)))

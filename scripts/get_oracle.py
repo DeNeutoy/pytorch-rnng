@@ -2,7 +2,7 @@
 
 from argparse import ArgumentParser
 
-from rnng.oracle import DiscOracle, GenOracle
+from rnng.oracle import DiscriminativeOracle, GenerativeOracle
 from rnng.corpus import Treebank
 
 parser = ArgumentParser(description='Get oracle for a given corpus')
@@ -15,6 +15,6 @@ args = parser.parse_args()
 
 treebank = Treebank(args.corpus, lowercase=args.lowercase)
 for parsed_sent in treebank.parsed_sentences():
-    oracle_class = GenOracle if args.generative else DiscOracle
+    oracle_class = GenerativeOracle if args.generative else DiscriminativeOracle
     oracle = oracle_class.from_parsed_sent(parsed_sent)
     print(oracle, end='\n\n')

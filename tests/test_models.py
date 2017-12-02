@@ -181,7 +181,7 @@ class TestDiscRNNGrammar:
         with pytest.raises(ValueError):
             DiscriminativeRnnGrammar(self.word2id, pos2id, self.nt2id, self.action_store)
 
-    def test_init_nt_id_out_of_range(self):
+    def test_init_non_terminal_id_out_of_range(self):
         nt2id = dict(self.nt2id)
 
         nt2id['S'] = len(nt2id)
@@ -220,7 +220,7 @@ class TestDiscRNNGrammar:
         with pytest.raises(ValueError):
             parser.start([('John', 'VBD')])
 
-    def test_do_nt_action(self):
+    def test_do_non_terminal_action(self):
         words = ['John', 'loves', 'Mary']
         pos_tags = ['NNP', 'VBZ', 'NNP']
         parser = DiscriminativeRnnGrammar(self.word2id, self.pos2id, self.nt2id, self.action_store)
@@ -239,7 +239,7 @@ class TestDiscRNNGrammar:
         assert parser.action_history[-1] == NonTerminalAction('S')
         assert not parser.finished
 
-    def test_do_illegal_push_nt_action(self):
+    def test_do_illegal_push_non_terminal_action(self):
         words = ['John']
         pos_tags = ['NNP']
         parser = DiscriminativeRnnGrammar(self.word2id, self.pos2id, self.nt2id, self.action_store)
@@ -258,7 +258,7 @@ class TestDiscRNNGrammar:
         with pytest.raises(IllegalActionError):
             parser.push_non_terminal('NP')
 
-    def test_push_unknown_nt(self):
+    def test_push_unknown_non_terminal(self):
         words = ['John']
         pos_tags = ['NNP']
         parser = DiscriminativeRnnGrammar(self.word2id, self.pos2id, self.nt2id, self.action_store)
@@ -267,7 +267,7 @@ class TestDiscRNNGrammar:
         with pytest.raises(KeyError):
             parser.push_non_terminal('asdf')
 
-    def test_push_known_nt_but_unknown_action(self):
+    def test_push_known_non_terminal_but_unknown_action(self):
         actions = [NonTerminalAction('NP'), NonTerminalAction('VP'), ShiftAction(), ReduceAction()]
         action_store = ItemStore()
         for a in actions:

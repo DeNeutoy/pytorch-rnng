@@ -62,7 +62,7 @@ class Oracle(metaclass=abc.ABCMeta):
         return actions
 
 
-class DiscOracle(Oracle):
+class DiscriminativeOracle(Oracle):
     def __init__(self, actions: Sequence[Action], pos_tags: Sequence[POSTag],
                  words: Sequence[Word]) -> None:
         shift_cnt = sum(1 if isinstance(a, ShiftAction) else 0 for a in actions)
@@ -99,7 +99,7 @@ class DiscOracle(Oracle):
         return '\n'.join(out)
 
     @classmethod
-    def from_parsed_sent(cls, parsed_sent: Tree) -> 'DiscOracle':
+    def from_parsed_sent(cls, parsed_sent: Tree) -> 'DiscriminativeOracle':
         actions = cls.get_actions(parsed_sent)
         words, pos_tags = zip(*parsed_sent.pos())
         return cls(actions, list(pos_tags), list(words))
@@ -111,7 +111,7 @@ class DiscOracle(Oracle):
         return ShiftAction()
 
     @classmethod
-    def from_string(cls, line: str) -> 'DiscOracle':
+    def from_string(cls, line: str) -> 'DiscriminativeOracle':
         rows = line.split('\n')
         if len(rows) < 3:
             raise ValueError('string must have at least 3 lines (words, POS tags, actions)')
@@ -134,7 +134,7 @@ class DiscOracle(Oracle):
                 f"'{line}' is not a valid string for any discriminative parser action")
 
 
-class GenOracle(Oracle):
+class GenerativeOracle(Oracle):
     def __init__(self, actions: Sequence[Action], pos_tags: Sequence[POSTag]) -> None:
         gen_cnt = sum(1 if isinstance(a, GenerateAction) else 0 for a in actions)
         if len(pos_tags) != gen_cnt:
@@ -173,7 +173,7 @@ class GenOracle(Oracle):
         return '\n'.join(out)
 
     @classmethod
-    def from_parsed_sent(cls, parsed_sent: Tree) -> 'GenOracle':
+    def from_parsed_sent(cls, parsed_sent: Tree) -> 'GenerativeOracle':
         actions = cls.get_actions(parsed_sent)
         _, pos_tags = zip(*parsed_sent.pos())
         return cls(actions, list(pos_tags))
@@ -185,7 +185,7 @@ class GenOracle(Oracle):
         return GenerateAction(pos_node[0])
 
     @classmethod
-    def from_string(cls, line: str) -> 'GenOracle':
+    def from_string(cls, line: str) -> 'GenerativeOracle':
         rows = line.split('\n')
         if len(rows) < 2:
             raise ValueError('string must have at least 2 lines (POS tags, actions)')

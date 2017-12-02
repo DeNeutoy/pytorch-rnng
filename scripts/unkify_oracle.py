@@ -3,7 +3,7 @@
 from argparse import ArgumentParser
 from collections import Counter
 
-from rnng.oracle import DiscOracle, GenOracle
+from rnng.oracle import DiscriminativeOracle, GenerativeOracle
 from rnng.actions import NonTerminalAction
 
 
@@ -23,7 +23,7 @@ parser.add_argument('--min-count', '-c', type=int, default=2,
                     help='minimum word count to be included in the vocabulary (default: 2)')
 args = parser.parse_args()
 
-oracle_class = GenOracle if args.generative else DiscOracle
+oracle_class = GenerativeOracle if args.generative else DiscriminativeOracle
 oracles = read_oracles_from_file(oracle_class, args.training_file)
 
 counter = Counter([w for oracle in oracles for w in oracle.words])

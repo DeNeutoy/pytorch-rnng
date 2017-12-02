@@ -1,7 +1,7 @@
 import pytest
 from nltk.tree import Tree
 
-from rnng.oracle import DiscOracle, GenOracle, OracleDataset
+from rnng.oracle import DiscriminativeOracle, GenerativeOracle, OracleDataset
 from rnng.utils import ItemStore
 from rnng.actions import ShiftAction, ReduceAction, NonTerminalAction, GenerateAction
 
@@ -25,9 +25,9 @@ class TestDiscOracle:
         expected_pos_tags = ['NNP', 'VBZ', 'NNP']
         expected_words = ['John', 'loves', 'Mary']
 
-        oracle = DiscOracle.from_parsed_sent(Tree.fromstring(s))
+        oracle = DiscriminativeOracle.from_parsed_sent(Tree.fromstring(s))
 
-        assert isinstance(oracle, DiscOracle)
+        assert isinstance(oracle, DiscriminativeOracle)
         assert oracle.actions == expected_actions
         assert oracle.pos_tags == expected_pos_tags
         assert oracle.words == expected_words
@@ -35,18 +35,21 @@ class TestDiscOracle:
     def test_from_string(self):
         s = 'asdf fdsa\nNNP VBZ\nNT(S)\nSHIFT\nSHIFT\nREDUCE'
 
-        oracle = DiscOracle.from_string(s)
+        oracle = DiscriminativeOracle.from_string(s)
 
-        assert isinstance(oracle, DiscOracle)
+        assert isinstance(oracle, DiscriminativeOracle)
         assert oracle.words == ['asdf', 'fdsa']
         assert oracle.pos_tags == ['NNP', 'VBZ']
-        assert oracle.actions == [NonTerminalAction('S'), ShiftAction(), ShiftAction(), ReduceAction()]
+        assert oracle.actions == [NonTerminalAction('S'),
+                                  ShiftAction(),
+                                  ShiftAction(),
+                                  ReduceAction()]
 
     def test_from_string_too_short(self):
         s = 'asdf asdf\nNT(S)\nSHIFT\nSHIFT\nREDUCE'
 
         with pytest.raises(ValueError):
-            DiscOracle.from_string(s)
+            DiscriminativeOracle.from_string(s)
 
 
 class TestGenOracle:
@@ -68,9 +71,9 @@ class TestGenOracle:
         expected_words = ['John', 'loves', 'Mary']
         expected_pos_tags = ['NNP', 'VBZ', 'NNP']
 
-        oracle = GenOracle.from_parsed_sent(Tree.fromstring(s))
+        oracle = GenerativeOracle.from_parsed_sent(Tree.fromstring(s))
 
-        assert isinstance(oracle, GenOracle)
+        assert isinstance(oracle, GenerativeOracle)
         assert oracle.actions == expected_actions
         assert oracle.words == expected_words
         assert oracle.pos_tags == expected_pos_tags
@@ -78,19 +81,21 @@ class TestGenOracle:
     def test_from_string(self):
         s = 'NNP VBZ\nNT(S)\nGEN(asdf)\nGEN(fdsa)\nREDUCE'
 
-        oracle = GenOracle.from_string(s)
+        oracle = GenerativeOracle.from_string(s)
 
-        assert isinstance(oracle, GenOracle)
+        assert isinstance(oracle, GenerativeOracle)
         assert oracle.words == ['asdf', 'fdsa']
         assert oracle.pos_tags == ['NNP', 'VBZ']
-        assert oracle.actions == [NonTerminalAction('S'), GenerateAction('asdf'), GenerateAction('fdsa'),
+        assert oracle.actions == [NonTerminalAction('S'),
+                                  GenerateAction('asdf'),
+                                  GenerateAction('fdsa'),
                                   ReduceAction()]
 
     def test_from_string_too_short(self):
         s = 'NT(S)'
 
         with pytest.raises(ValueError):
-            GenOracle.from_string(s)
+            GenerativeOracle.from_string(s)
 
 
 class TestOracleDataset:
@@ -101,10 +106,14 @@ class TestOracleDataset:
     words = {'John', 'loves', 'hates', 'Mary'}
     pos_tags = {'NNP', 'VBZ'}
     nt_labels = {'S', 'NP', 'VP'}
-    actions = {NonTerminalAction('S'), NonTerminalAction('NP'), NonTerminalAction('VP'), ShiftAction(), ReduceAction()}
+    actions = {NonTerminalAction('S'),
+               NonTerminalAction('NP'),
+               NonTerminalAction('VP'),
+               ShiftAction(),
+               ReduceAction()}
 
     def test_init(self):
-        oracles = [DiscOracle.from_parsed_sent(Tree.fromstring(s))
+        oracles = [DiscriminativeOracle.from_parsed_sent(Tree.fromstring(s))
                    for s in self.bracketed_sents]
 
         dataset = OracleDataset(oracles)
@@ -119,7 +128,7 @@ class TestOracleDataset:
         assert set(dataset.action_store) == self.actions
 
     def test_getitem(self):
-        oracles = [DiscOracle.from_parsed_sent(Tree.fromstring(s))
+        oracles = [DiscriminativeOracle.from_parsed_sent(Tree.fromstring(s))
                    for s in self.bracketed_sents]
 
         dataset = OracleDataset(oracles)
@@ -128,7 +137,7 @@ class TestOracleDataset:
         assert oracles[1] is dataset[1]
 
     def test_len(self):
-        oracles = [DiscOracle.from_parsed_sent(Tree.fromstring(s))
+        oracles = [DiscriminativeOracle.from_parsed_sent(Tree.fromstring(s))
                    for s in self.bracketed_sents]
 
         dataset = OracleDataset(oracles)
