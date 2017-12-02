@@ -1,6 +1,6 @@
 import abc
 
-from rnng.typing import NTLabel, Word
+from rnng.typing import NonTerminalLabel, Word
 
 
 class Action(metaclass=abc.ABCMeta):
@@ -89,15 +89,16 @@ class ReduceAction(Action):
             return cls()
 
 
-class NTAction(Action):
-    def __init__(self, label: NTLabel) -> None:
+class NonTerminalAction(Action):
+    def __init__(self, label: NonTerminalLabel) -> None:
         self.label = label
 
     def __str__(self) -> str:
         return f'NT({self.label})'
 
     def __eq__(self, other) -> bool:
-        return isinstance(other, self.__class__) and self.label == other.label  # type: ignore
+        return (isinstance(other, self.__class__)
+                and self.label == other.label)  # type: ignore
 
     def __hash__(self) -> int:
         return hash(str(self))
@@ -109,7 +110,7 @@ class NTAction(Action):
         parser.push_nt(self.label)
 
     @classmethod
-    def from_string(cls, line: str) -> 'NTAction':
+    def from_string(cls, line: str) -> 'NonTerminalAction':
         if not line.startswith('NT(') or not line.endswith(')'):
             raise ValueError('invalid string value for NT(X) action')
         else:
@@ -117,7 +118,7 @@ class NTAction(Action):
             return cls(line[start:-1])
 
 
-class GenAction(Action):
+class GenerateAction(Action):
     def __init__(self, word: Word) -> None:
         self.word = word
 
@@ -137,7 +138,7 @@ class GenAction(Action):
         raise NotImplementedError('generative RNNG is not implemented yet')
 
     @classmethod
-    def from_string(cls, line: str) -> 'GenAction':
+    def from_string(cls, line: str) -> 'GenerateAction':
         if not line.startswith('GEN(') or not line.endswith(')'):
             raise ValueError('invalid string value for GEN(w) action')
         else:

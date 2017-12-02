@@ -5,9 +5,9 @@ from typing import Type  # noqa
 from nltk.tree import Tree
 from torch.utils.data import Dataset
 
-from rnng.actions import Action, ShiftAction, ReduceAction, NTAction, GenAction
+from rnng.actions import Action, ShiftAction, ReduceAction, NonTerminalAction, GenerateAction
 from rnng.typing import POSTag, Word
-from rnng.typing import NTLabel  # noqa
+from rnng.typing import NonTerminalLabel  # noqa
 from rnng.utils import ItemStore
 
 
@@ -55,7 +55,7 @@ class Oracle(metaclass=abc.ABCMeta):
         if len(tree) == 1 and not isinstance(tree[0], Tree):
             return [cls.get_action_at_pos_node(tree)]
 
-        actions: List[Action] = [NTAction(tree.label())]
+        actions: List[Action] = [NonTerminalAction(tree.label())]
         for child in tree:
             actions.extend(cls.get_actions(child))
         actions.append(ReduceAction())
@@ -123,7 +123,7 @@ class DiscOracle(Oracle):
 
     @staticmethod
     def get_action_from_string(line: str) -> Action:
-        classes = [NTAction, ShiftAction, ReduceAction]  # type: List[Type[Action]]
+        classes = [NonTerminalAction, ShiftAction, ReduceAction]  # type: List[Type[Action]]
         for cls in classes:
             try:
                 return cls.from_string(line)
@@ -136,7 +136,7 @@ class DiscOracle(Oracle):
 
 class GenOracle(Oracle):
     def __init__(self, actions: Sequence[Action], pos_tags: Sequence[POSTag]) -> None:
-        gen_cnt = sum(1 if isinstance(a, GenAction) else 0 for a in actions)
+        gen_cnt = sum(1 if isinstance(a, GenerateAction) else 0 for a in actions)
         if len(pos_tags) != gen_cnt:
             raise ValueError('number of POS tags should match number of GEN actions')
 
@@ -153,7 +153,7 @@ class GenOracle(Oracle):
 
     @property
     def words(self) -> List[Word]:
-        return [a.word for a in self.actions if isinstance(a, GenAction)]
+        return [a.word for a in self.actions if isinstance(a, GenerateAction)]
 
     @words.setter
     def words(self, new_words: Sequence[Word]) -> None:
@@ -162,7 +162,7 @@ class GenOracle(Oracle):
 
         i = 0
         for word in new_words:
-            while i < len(self._actions) and not isinstance(self._actions[i], GenAction):
+            while i < len(self._actions) and not isinstance(self._actions[i], GenerateAction):
                 i += 1
             assert i < len(self._actions)
             self._actions[i].word = word  # type: ignore
@@ -182,7 +182,7 @@ class GenOracle(Oracle):
     def get_action_at_pos_node(cls, pos_node: Tree) -> Action:
         if len(pos_node) != 1 or isinstance(pos_node[0], Tree):
             raise ValueError('input is not a valid POS node')
-        return GenAction(pos_node[0])
+        return GenerateAction(pos_node[0])
 
     @classmethod
     def from_string(cls, line: str) -> 'GenOracle':
@@ -196,7 +196,7 @@ class GenOracle(Oracle):
 
     @staticmethod
     def get_action_from_string(line: str) -> Action:
-        classes = [NTAction, GenAction, ReduceAction]  # type: List[Type[Action]]
+        classes = [NonTerminalAction, GenerateAction, ReduceAction]  # type: List[Type[Action]]
         for cls in classes:
             try:
                 return cls.from_string(line)
@@ -212,7 +212,7 @@ class OracleDataset(Dataset):
         self.oracles = oracles
         self.word_store = ItemStore()  # type: ItemStore[Word]
         self.pos_store = ItemStore()  # type: ItemStore[POSTag]
-        self.nt_store = ItemStore()  # type: ItemStore[NTLabel]
+        self.nt_store = ItemStore()  # type: ItemStore[NonTerminalLabel]
         self.action_store = ItemStore()  # type: ItemStore[Action]
 
         self.load()
@@ -225,7 +225,7 @@ class OracleDataset(Dataset):
                 self.pos_store.add(pos)
             for action in oracle.actions:
                 self.action_store.add(action)
-                if isinstance(action, NTAction):
+                if isinstance(action, NonTerminalAction):
                     self.nt_store.add(action.label)
 
     def __getitem__(self, index: int) -> Oracle:

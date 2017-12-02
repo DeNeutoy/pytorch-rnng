@@ -10,8 +10,8 @@ import torch.nn.functional as F
 import torch.nn.init as init
 from torch.autograd import Variable
 
-from rnng.actions import Action, ShiftAction, ReduceAction, NTAction
-from rnng.typing import Word, POSTag, NTLabel, WordId, POSId, NTId, ActionId
+from rnng.actions import Action, ShiftAction, ReduceAction, NonTerminalAction
+from rnng.typing import Word, POSTag, NonTerminalLabel, WordId, POSId, NTId, ActionId
 from rnng.utils import ItemStore
 
 
@@ -125,7 +125,7 @@ class RNNGrammar(nn.Module, metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    def push_nt(self, nonterm: NTLabel) -> None:
+    def push_nt(self, nonterm: NonTerminalLabel) -> None:
         pass
 
     @abc.abstractmethod
@@ -145,7 +145,7 @@ class DiscRNNGrammar(RNNGrammar):
     MAX_OPEN_NT = 100
 
     def __init__(self, word2id: Mapping[Word, WordId], pos2id: Mapping[POSTag, POSId],
-                 nt2id: Mapping[NTLabel, NTId], action_store: ItemStore,
+                 nt2id: Mapping[NonTerminalLabel, NTId], action_store: ItemStore,
                  word_dim: int = 32, pos_dim: int = 12, nt_dim: int = 60, action_dim: int = 16,
                  input_dim: int = 128, hidden_dim: int = 128, num_layers: int = 2,
                  dropout: float = 0.) -> None:
@@ -308,10 +308,10 @@ class DiscRNNGrammar(RNNGrammar):
             self.buffer_lstm.push(self._word_emb[wid])
         self._started = True
 
-    def push_nt(self, nonterm: NTLabel) -> None:
+    def push_nt(self, nonterm: NonTerminalLabel) -> None:
         if nonterm not in self.nt2id:
             raise KeyError(f"unknown nonterminal '{nonterm}' encountered")
-        action = NTAction(nonterm)
+        action = NonTerminalAction(nonterm)
         if action not in self.action_store:
             raise KeyError(f"unknown action '{action}' encountered")
 
@@ -411,7 +411,7 @@ class DiscRNNGrammar(RNNGrammar):
         self._num_open_nt -= 1
         assert self._num_open_nt >= 0
 
-    def _push_nt(self, nonterm: NTLabel) -> None:
+    def _push_nt(self, nonterm: NonTerminalLabel) -> None:
         nid = self.nt2id[nonterm]
         assert isinstance(self._nt_emb, Variable)
         assert 0 <= nid < self._nt_emb.size(0)
@@ -476,7 +476,7 @@ class DiscRNNGrammar(RNNGrammar):
 
     def verify_reduce(self) -> None:
         self._verify_action()
-        last_is_nt = len(self._history) > 0 and isinstance(self._history[-1], NTAction)
+        last_is_nt = len(self._history) > 0 and isinstance(self._history[-1], NonTerminalAction)
         if last_is_nt:
             raise IllegalActionError(
                 'cannot REDUCE when top of stack is an open nonterminal')

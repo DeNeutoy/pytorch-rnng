@@ -1,6 +1,6 @@
 Word = str
 POSTag = str
-NTLabel = str
+NonTerminalLabel = str
 WordId = int
 POSId = int
 NTId = int
