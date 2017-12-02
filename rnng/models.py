@@ -1,6 +1,6 @@
 import abc
 from collections import OrderedDict
-from typing import Collection, List, Mapping, NamedTuple, Sequence, Sized, Tuple, Union, cast
+from typing import Collection, List, Mapping, NamedTuple, Sequence, Tuple, Union, cast
 from typing import Dict  # noqa
 
 from nltk.tree import Tree
@@ -13,67 +13,7 @@ from torch.autograd import Variable
 from rnng.actions import Action, ShiftAction, ReduceAction, NonTerminalAction
 from rnng.typing import Word, POSTag, NonTerminalLabel, WordId, POSId, NTId, ActionId
 from rnng.utils import ItemStore
-
-
-class EmptyStackError(Exception):
-    def __init__(self):
-        super().__init__('stack is already empty')
-
-
-class StackLSTM(nn.Module, Sized):
-    BATCH_SIZE = 1
-    SEQ_LEN = 1
-
-    def __init__(self, input_size: int, hidden_size: int, num_layers: int = 1,
-                 dropout: float = 0.) -> None:
-        if num_layers < 1:
-            raise ValueError('number of layers is at least 1')
-
-        super().__init__()
-        self.input_size = input_size
-        self.hidden_size = hidden_size
-        self.num_layers = num_layers
-        self.dropout = dropout
-        self.lstm = nn.LSTM(input_size, hidden_size, num_layers=num_layers, dropout=dropout)
-        self.h0 = nn.Parameter(torch.FloatTensor(num_layers, self.BATCH_SIZE, hidden_size))
-        self.c0 = nn.Parameter(torch.FloatTensor(num_layers, self.BATCH_SIZE, hidden_size))
-        init_states = (self.h0, self.c0)
-        self._state_history = [init_states]
-        self._output_history = []  # type: List[Variable]
-
-    def forward(self, inputs: Variable) -> Tuple[Variable, Variable]:
-        # inputs: input_size
-        assert self._state_history
-
-        # Set seq_len and batch_size to 1
-        inputs = inputs.view(self.SEQ_LEN, self.BATCH_SIZE, inputs.numel())
-        next_outputs, next_states = self.lstm(inputs, self._state_history[-1])
-        self._state_history.append(next_states)
-        self._output_history.append(next_outputs)
-        return next_states
-
-    def push(self, *args, **kwargs):
-        return self(*args, **kwargs)
-
-    def pop(self) -> Tuple[Variable, Variable]:
-        if len(self._state_history) > 1:
-            self._output_history.pop()
-            return self._state_history.pop()
-        else:
-            raise EmptyStackError()
-
-    @property
-    def top(self) -> Variable:
-        # outputs: hidden_size
-        return self._output_history[-1].squeeze() if self._output_history else None
-
-    def __repr__(self) -> str:
-        res = ('{}(input_size={input_size}, hidden_size={hidden_size}, '
-               'num_layers={num_layers}, dropout={dropout})')
-        return res.format(self.__class__.__name__, **self.__dict__)
-
-    def __len__(self):
-        return len(self._output_history)
+from rnng.stack_lstm import StackLSTM
 
 
 def log_softmax(inputs: Variable, restrictions=None) -> Variable:
@@ -125,7 +65,7 @@ class RnnGrammar(nn.Module, metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    def push_nt(self, nonterm: NonTerminalLabel) -> None:
+    def push_non_terminal(self, nonterm: NonTerminalLabel) -> None:
         pass
 
     @abc.abstractmethod
@@ -133,7 +73,7 @@ class RnnGrammar(nn.Module, metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    def verify_push_nt(self) -> None:
+    def verify_push_non_terminal(self) -> None:
         pass
 
     @abc.abstractmethod
@@ -144,11 +84,20 @@ class RnnGrammar(nn.Module, metaclass=abc.ABCMeta):
 class DiscriminativeRnnGrammar(RnnGrammar):
     MAX_OPEN_NT = 100
 
-    def __init__(self, word2id: Mapping[Word, WordId], pos2id: Mapping[POSTag, POSId],
-                 nt2id: Mapping[NonTerminalLabel, NTId], action_store: ItemStore,
-                 word_dim: int = 32, pos_dim: int = 12, nt_dim: int = 60, action_dim: int = 16,
-                 input_dim: int = 128, hidden_dim: int = 128, num_layers: int = 2,
+    def __init__(self,
+                 word2id: Mapping[Word, WordId],
+                 pos2id: Mapping[POSTag, POSId],
+                 nt2id: Mapping[NonTerminalLabel, NTId],
+                 action_store: ItemStore,
+                 word_dim: int = 32,
+                 pos_dim: int = 12,
+                 nt_dim: int = 60,
+                 action_dim: int = 16,
+                 input_dim: int = 128,
+                 hidden_dim: int = 128,
+                 num_layers: int = 2,
                  dropout: float = 0.) -> None:
+
         if ShiftAction() not in action_store:
             raise ValueError('SHIFT action ID must be specified')
         if ReduceAction() not in action_store:
@@ -191,22 +140,19 @@ class DiscriminativeRnnGrammar(RnnGrammar):
         self._stack = []  # type: List[StackElement]
         self._buffer = []  # type: List[Word]
         self._history = []  # type: List[Action]
-        self._num_open_nt = 0
+        self._num_open_non_terminals = 0
         self._started = False
 
         # Parser state encoders
-        self.stack_lstm = StackLSTM(
-            input_dim, hidden_dim, num_layers=num_layers, dropout=dropout)
-        self.buffer_lstm = StackLSTM(  # can use LSTM, but this is easier
-            input_dim, hidden_dim, num_layers=num_layers, dropout=dropout)
-        self.history_lstm = StackLSTM(  # can use LSTM, but this is more efficient
-            input_dim, hidden_dim, num_layers=num_layers, dropout=dropout)
+        self.stack_lstm = StackLSTM(input_dim, hidden_dim, num_layers=num_layers, dropout=dropout)
+        # can use an LSTM, but this is easier.
+        self.buffer_lstm = StackLSTM(input_dim, hidden_dim, num_layers=num_layers, dropout=dropout)
+        # can use LSTM, but this is more efficient
+        self.history_lstm = StackLSTM(input_dim, hidden_dim, num_layers=num_layers, dropout=dropout)
 
         # Composition
-        self.compose_fwd_lstm = nn.LSTM(
-            input_dim, input_dim, num_layers=num_layers, dropout=dropout)
-        self.compose_bwd_lstm = nn.LSTM(
-            input_dim, input_dim, num_layers=num_layers, dropout=dropout)
+        self.compose_fwd_lstm = nn.LSTM(input_dim, input_dim, num_layers=num_layers, dropout=dropout)
+        self.compose_bwd_lstm = nn.LSTM(input_dim, input_dim, num_layers=num_layers, dropout=dropout)
 
         # Transformations
         self.word2lstm = nn.Sequential(OrderedDict([
@@ -282,7 +228,7 @@ class DiscriminativeRnnGrammar(RnnGrammar):
         self._stack = []
         self._buffer = []
         self._history = []
-        self._num_open_nt = 0
+        self._num_open_non_terminals = 0
         self._started = False
 
         while len(self.stack_lstm) > 0:
@@ -308,14 +254,14 @@ class DiscriminativeRnnGrammar(RnnGrammar):
             self.buffer_lstm.push(self._word_emb[wid])
         self._started = True
 
-    def push_nt(self, nonterm: NonTerminalLabel) -> None:
+    def push_non_terminal(self, nonterm: NonTerminalLabel) -> None:
         if nonterm not in self.nt2id:
             raise KeyError(f"unknown nonterminal '{nonterm}' encountered")
         action = NonTerminalAction(nonterm)
         if action not in self.action_store:
             raise KeyError(f"unknown action '{action}' encountered")
 
-        self.verify_push_nt()
+        self.verify_push_non_terminal()
         self._push_nt(nonterm)
         self._append_history(action)
 
@@ -408,8 +354,8 @@ class DiscriminativeRnnGrammar(RnnGrammar):
         parent_subtree.extend(child_subtrees)
         composed_emb = self._compose(open_nt.emb, child_embs)
         self._stack.append(StackElement(parent_subtree, composed_emb, False))
-        self._num_open_nt -= 1
-        assert self._num_open_nt >= 0
+        self._num_open_non_terminals -= 1
+        assert self._num_open_non_terminals >= 0
 
     def _push_nt(self, nonterm: NonTerminalLabel) -> None:
         nid = self.nt2id[nonterm]
@@ -418,7 +364,7 @@ class DiscriminativeRnnGrammar(RnnGrammar):
         self._stack.append(
             StackElement(Tree(nonterm, []), self._nt_emb[nid], True))
         self.stack_lstm.push(self._nt_emb[nid])
-        self._num_open_nt += 1
+        self._num_open_non_terminals += 1
 
     def _compose(self, open_nt_emb: Variable, children_embs: Sequence[Variable]) -> Variable:
         assert open_nt_emb.dim() == 1
@@ -460,18 +406,18 @@ class DiscriminativeRnnGrammar(RnnGrammar):
         if self.finished:
             raise RuntimeError('cannot do more action when parser is finished')
 
-    def verify_push_nt(self) -> None:
+    def verify_push_non_terminal(self) -> None:
         self._verify_action()
         if len(self._buffer) == 0:
             raise IllegalActionError('cannot do NT(X) when input buffer is empty')
-        if self._num_open_nt >= self.MAX_OPEN_NT:
+        if self._num_open_non_terminals >= self.MAX_OPEN_NT:
             raise IllegalActionError('max number of open nonterminals is reached')
 
     def verify_shift(self) -> None:
         self._verify_action()
         if len(self._buffer) == 0:
             raise IllegalActionError('cannot SHIFT when input buffer is empty')
-        if self._num_open_nt == 0:
+        if self._num_open_non_terminals == 0:
             raise IllegalActionError('cannot SHIFT when no open nonterminal exists')
 
     def verify_reduce(self) -> None:
@@ -480,7 +426,7 @@ class DiscriminativeRnnGrammar(RnnGrammar):
         if last_is_nt:
             raise IllegalActionError(
                 'cannot REDUCE when top of stack is an open nonterminal')
-        if self._num_open_nt < 2 and len(self._buffer) > 0:
+        if self._num_open_non_terminals < 2 and len(self._buffer) > 0:
             raise IllegalActionError(
                 'cannot REDUCE because there are words not SHIFT-ed yet')
 
@@ -531,7 +477,7 @@ class DiscriminativeRnnGrammar(RnnGrammar):
     def _init_compose_states(self) -> Tuple[Variable, Variable]:
         h0 = Variable(self._new(self.num_layers, 1, self.input_dim).zero_())
         c0 = Variable(self._new(self.num_layers, 1, self.input_dim).zero_())
-        return (h0, c0)
+        return h0, c0
 
     def _new(self, *args, **kwargs):
         return next(self.parameters()).data.new(*args, **kwargs)

@@ -3,8 +3,8 @@ import torch
 from nltk.tree import Tree
 from torch.autograd import Variable
 
-from rnng.models import (DiscriminativeRnnGrammar, EmptyStackError, StackLSTM, log_softmax,
-                         IllegalActionError)
+from rnng.models import DiscriminativeRnnGrammar, log_softmax, IllegalActionError
+from rnng.stack_lstm import StackLSTM, EmptyStackError
 from rnng.utils import ItemStore
 from rnng.actions import ShiftAction, ReduceAction, NonTerminalAction
 
@@ -227,7 +227,7 @@ class TestDiscRNNGrammar:
         parser.start(list(zip(words, pos_tags)))
         prev_input_buffer = parser.input_buffer
 
-        parser.push_nt('S')
+        parser.push_non_terminal('S')
 
         assert len(parser.stack_buffer) == 1
         last = parser.stack_buffer[-1]
@@ -246,17 +246,17 @@ class TestDiscRNNGrammar:
 
         # Buffer is empty
         parser.start(list(zip(words, pos_tags)))
-        parser.push_nt('S')
+        parser.push_non_terminal('S')
         parser.shift()
         with pytest.raises(IllegalActionError):
-            parser.push_nt('NP')
+            parser.push_non_terminal('NP')
 
         # More than 100 open nonterminals
         parser.start(list(zip(words, pos_tags)))
         for i in range(100):
-            parser.push_nt('S')
+            parser.push_non_terminal('S')
         with pytest.raises(IllegalActionError):
-            parser.push_nt('NP')
+            parser.push_non_terminal('NP')
 
     def test_push_unknown_nt(self):
         words = ['John']
@@ -265,7 +265,7 @@ class TestDiscRNNGrammar:
         parser.start(list(zip(words, pos_tags)))
 
         with pytest.raises(KeyError):
-            parser.push_nt('asdf')
+            parser.push_non_terminal('asdf')
 
     def test_push_known_nt_but_unknown_action(self):
         actions = [NonTerminalAction('NP'), NonTerminalAction('VP'), ShiftAction(), ReduceAction()]
@@ -278,15 +278,15 @@ class TestDiscRNNGrammar:
         parser.start(list(zip(words, pos_tags)))
 
         with pytest.raises(KeyError):
-            parser.push_nt('S')
+            parser.push_non_terminal('S')
 
     def test_do_shift_action(self):
         words = ['John', 'loves', 'Mary']
         pos_tags = ['NNP', 'VBZ', 'NNP']
         parser = DiscriminativeRnnGrammar(self.word2id, self.pos2id, self.nt2id, self.action_store)
         parser.start(list(zip(words, pos_tags)))
-        parser.push_nt('S')
-        parser.push_nt('NP')
+        parser.push_non_terminal('S')
+        parser.push_non_terminal('NP')
 
         parser.shift()
 
@@ -310,7 +310,7 @@ class TestDiscRNNGrammar:
 
         # Buffer is empty
         parser.start(list(zip(words, pos_tags)))
-        parser.push_nt('S')
+        parser.push_non_terminal('S')
         parser.shift()
         with pytest.raises(IllegalActionError):
             parser.shift()
@@ -320,8 +320,8 @@ class TestDiscRNNGrammar:
         pos_tags = ['NNP', 'VBZ', 'NNP']
         parser = DiscriminativeRnnGrammar(self.word2id, self.pos2id, self.nt2id, self.action_store)
         parser.start(list(zip(words, pos_tags)))
-        parser.push_nt('S')
-        parser.push_nt('NP')
+        parser.push_non_terminal('S')
+        parser.push_non_terminal('NP')
         parser.shift()
         prev_input_buffer = parser.input_buffer
 
@@ -345,13 +345,13 @@ class TestDiscRNNGrammar:
 
         # Top of stack is an open nonterminal
         parser.start(list(zip(words, pos_tags)))
-        parser.push_nt('S')
+        parser.push_non_terminal('S')
         with pytest.raises(IllegalActionError):
             parser.reduce()
 
         # Buffer is not empty and REDUCE will finish parsing
         parser.start(list(zip(words, pos_tags)))
-        parser.push_nt('S')
+        parser.push_non_terminal('S')
         parser.shift()
         with pytest.raises(IllegalActionError):
             parser.reduce()
@@ -360,7 +360,7 @@ class TestDiscRNNGrammar:
         parser = DiscriminativeRnnGrammar(self.word2id, self.pos2id, self.nt2id, self.action_store)
 
         with pytest.raises(RuntimeError):
-            parser.push_nt('S')
+            parser.push_non_terminal('S')
         with pytest.raises(RuntimeError):
             parser.shift()
         with pytest.raises(RuntimeError):
@@ -371,8 +371,8 @@ class TestDiscRNNGrammar:
         pos_tags = ['NNP', 'VBZ', 'NNP']
         parser = DiscriminativeRnnGrammar(self.word2id, self.pos2id, self.nt2id, self.action_store)
         parser.start(list(zip(words, pos_tags)))
-        parser.push_nt('S')
-        parser.push_nt('NP')
+        parser.push_non_terminal('S')
+        parser.push_non_terminal('NP')
         parser.shift()
         parser.reduce()
 
@@ -411,13 +411,13 @@ class TestDiscRNNGrammar:
                                     Tree('VP', ['loves', Tree('NP', ['Mary'])])])
 
         parser.start(list(zip(words, pos_tags)))
-        parser.push_nt('S')
-        parser.push_nt('NP')
+        parser.push_non_terminal('S')
+        parser.push_non_terminal('NP')
         parser.shift()
         parser.reduce()
-        parser.push_nt('VP')
+        parser.push_non_terminal('VP')
         parser.shift()
-        parser.push_nt('NP')
+        parser.push_non_terminal('NP')
         parser.shift()
         parser.reduce()
         parser.reduce()
@@ -429,7 +429,7 @@ class TestDiscRNNGrammar:
         with pytest.raises(RuntimeError):
             parser()
         with pytest.raises(RuntimeError):
-            parser.push_nt('NP')
+            parser.push_non_terminal('NP')
         with pytest.raises(RuntimeError):
             parser.shift()
         with pytest.raises(RuntimeError):

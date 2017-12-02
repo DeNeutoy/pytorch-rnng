@@ -104,10 +104,10 @@ class NonTerminalAction(Action):
         return hash(str(self))
 
     def verify_legal_on(self, parser) -> None:
-        parser.verify_push_nt()
+        parser.verify_push_non_terminal()
 
     def execute_on(self, parser) -> None:
-        parser.push_nt(self.label)
+        parser.push_non_terminal(self.label)
 
     @classmethod
     def from_string(cls, line: str) -> 'NonTerminalAction':
