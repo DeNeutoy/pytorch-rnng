@@ -3,5 +3,5 @@ POSTag = str
 NonTerminalLabel = str
 WordId = int
 POSId = int
-NTId = int
+NonTerminalId = int
 ActionId = int

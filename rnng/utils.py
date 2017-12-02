@@ -2,7 +2,7 @@ from typing import Iterator, Mapping, TypeVar, Union
 from typing import Dict, List  # noqa
 
 from nltk.tree import Tree
-from rnng.typing import NTId, NonTerminalLabel, Word, WordId
+from rnng.typing import NonTerminalId, NonTerminalLabel, Word, WordId
 
 
 T = TypeVar('T')
@@ -35,7 +35,7 @@ class ItemStore(Mapping[T, int]):
 class ParseTreeMapper:
     def __init__(self,
                  word2id: Mapping[Word, WordId],
-                 nt2id: Mapping[NonTerminalLabel, NTId]) -> None:
+                 nt2id: Mapping[NonTerminalLabel, NonTerminalId]) -> None:
 
         words, word_ids = tuple(zip(*word2id.items()))
         nt_labels, nt_ids = tuple(zip(*nt2id.items()))

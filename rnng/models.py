@@ -11,7 +11,7 @@ import torch.nn.init as init
 from torch.autograd import Variable
 
 from rnng.actions import Action, ShiftAction, ReduceAction, NonTerminalAction
-from rnng.typing import Word, POSTag, NonTerminalLabel, WordId, POSId, NTId, ActionId
+from rnng.typing import Word, POSTag, NonTerminalLabel, WordId, POSId, NonTerminalId, ActionId
 from rnng.utils import ItemStore
 from rnng.stack_lstm import StackLSTM
 
@@ -82,16 +82,16 @@ class RnnGrammar(nn.Module, metaclass=abc.ABCMeta):
 
 
 class DiscriminativeRnnGrammar(RnnGrammar):
-    MAX_OPEN_NT = 100
+    MAX_OPEN_NON_TERMINALS = 100
 
     def __init__(self,
                  word2id: Mapping[Word, WordId],
                  pos2id: Mapping[POSTag, POSId],
-                 nt2id: Mapping[NonTerminalLabel, NTId],
+                 non_terminal2id: Mapping[NonTerminalLabel, NonTerminalId],
                  action_store: ItemStore,
                  word_dim: int = 32,
                  pos_dim: int = 12,
-                 nt_dim: int = 60,
+                 non_terminal_dim: int = 60,
                  action_dim: int = 16,
                  input_dim: int = 128,
                  hidden_dim: int = 128,
@@ -105,7 +105,7 @@ class DiscriminativeRnnGrammar(RnnGrammar):
 
         num_words = len(word2id)
         num_pos = len(pos2id)
-        num_nt = len(nt2id)
+        num_non_terminals = len(non_terminal2id)
         num_actions = len(action_store)
 
         for wid in word2id.values():
@@ -114,22 +114,22 @@ class DiscriminativeRnnGrammar(RnnGrammar):
         for pid in pos2id.values():
             if pid < 0 or pid >= num_pos:
                 raise ValueError(f'POS tag ID of {pid} is out of range')
-        for nid in nt2id.values():
-            if nid < 0 or nid >= num_nt:
+        for nid in non_terminal2id.values():
+            if nid < 0 or nid >= num_non_terminals:
                 raise ValueError(f'nonterminal ID of {nid} is out of range')
 
         super().__init__()
         self.word2id = word2id
         self.pos2id = pos2id
-        self.nt2id = nt2id
+        self.nt2id = non_terminal2id
         self.action_store = action_store
         self.num_words = num_words
         self.num_pos = num_pos
-        self.num_nt = num_nt
+        self.num_non_terminals = num_non_terminals
         self.num_actions = num_actions
         self.word_dim = word_dim
         self.pos_dim = pos_dim
-        self.nt_dim = nt_dim
+        self.non_terminal_dim = non_terminal_dim
         self.action_dim = action_dim
         self.input_dim = input_dim
         self.hidden_dim = hidden_dim
@@ -160,7 +160,7 @@ class DiscriminativeRnnGrammar(RnnGrammar):
             ('relu', nn.ReLU())
         ]))
         self.nt2lstm = nn.Sequential(OrderedDict([
-            ('linear', nn.Linear(nt_dim, input_dim)),
+            ('linear', nn.Linear(non_terminal_dim, input_dim)),
             ('relu', nn.ReLU())
         ]))
         self.action2lstm = nn.Sequential(OrderedDict([
@@ -181,7 +181,7 @@ class DiscriminativeRnnGrammar(RnnGrammar):
         # Embeddings
         self.word_embs = nn.Embedding(num_words, word_dim)
         self.pos_embs = nn.Embedding(num_pos, pos_dim)
-        self.nt_embs = nn.Embedding(num_nt, nt_dim)
+        self.nt_embs = nn.Embedding(num_non_terminals, non_terminal_dim)
         self.action_embs = nn.Embedding(num_actions, action_dim)
 
         # Guard parameters for stack, buffer, and action history
@@ -298,7 +298,7 @@ class DiscriminativeRnnGrammar(RnnGrammar):
         pos_ids = [self.pos2id[p] for p in pos_tags]
         assert all(0 <= wid < self.num_words for wid in word_ids)
         assert all(0 <= pid < self.num_pos for pid in pos_ids)
-        nt_ids = list(range(self.num_nt))
+        nt_ids = list(range(self.num_non_terminals))
         action_ids = list(range(self.num_actions))
 
         volatile = not self.training
@@ -309,7 +309,7 @@ class DiscriminativeRnnGrammar(RnnGrammar):
 
         word_embs = self.word_embs(word_indices).view(-1, self.word_dim)
         pos_embs = self.pos_embs(pos_indices).view(-1, self.pos_dim)
-        nt_embs = self.nt_embs(nt_indices).view(-1, self.nt_dim)
+        nt_embs = self.nt_embs(nt_indices).view(-1, self.non_terminal_dim)
         action_embs = self.action_embs(action_indices).view(-1, self.action_dim)
 
         final_word_embs = self.word2lstm(torch.cat([word_embs, pos_embs], dim=1))
@@ -410,7 +410,7 @@ class DiscriminativeRnnGrammar(RnnGrammar):
         self._verify_action()
         if len(self._buffer) == 0:
             raise IllegalActionError('cannot do NT(X) when input buffer is empty')
-        if self._num_open_non_terminals >= self.MAX_OPEN_NT:
+        if self._num_open_non_terminals >= self.MAX_OPEN_NON_TERMINALS:
             raise IllegalActionError('max number of open nonterminals is reached')
 
     def verify_shift(self) -> None:

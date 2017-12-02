@@ -27,8 +27,11 @@ def run_batch(parser: RnnGrammar, oracle: Oracle) -> Variable:
     return F.nll_loss(outputs, targets)
 
 
-def train(loader: DataLoader, parser: RnnGrammar, optimizer: Optimizer,
-          log_interval: int = 100, epoch_num: int = 1,
+def train(loader: DataLoader,
+          parser: RnnGrammar,
+          optimizer: Optimizer,
+          log_interval: int = 100,
+          epoch_num: int = 1,
           grad_clip: float = 5.) -> None:
     parser.train()
     loss = MeanAggregate()
@@ -73,9 +76,15 @@ def evaluate(loader: DataLoader, parser: RnnGrammar) -> float:
     return loss.mean
 
 
-def train_early_stopping(train_loader: DataLoader, dev_loader: DataLoader, parser: RnnGrammar,
-                         optimizer: Optimizer, tol: float = 1e-4, patience: int = 20,
-                         eval_interval: int = 1, on_ppl: bool = True, save_to: str = None,
+def train_early_stopping(train_loader: DataLoader,
+                         dev_loader: DataLoader,
+                         parser: RnnGrammar,
+                         optimizer: Optimizer,
+                         tol: float = 1e-4,
+                         patience: int = 20,
+                         eval_interval: int = 1,
+                         on_ppl: bool = True,
+                         save_to: str = None,
                          **kwargs) -> None:
     if patience <= 0:
         raise ValueError('patience must be positive')
