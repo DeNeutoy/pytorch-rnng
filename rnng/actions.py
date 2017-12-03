@@ -22,7 +22,7 @@ class Action(metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    def verify_legal_on(self, parser) -> None:
+    def is_legal_on(self, parser) -> bool:
         pass
 
     @abc.abstractmethod
@@ -43,12 +43,12 @@ class ShiftAction(Action):
     def __hash__(self) -> int:
         return hash(str(self))
 
-    def verify_legal_on(self, parser) -> None:
+    def is_legal_on(self, parser) -> bool:
         from rnng.models import DiscriminativeRnnGrammar
 
         if not isinstance(parser, DiscriminativeRnnGrammar):
             raise TypeError(f'{self} action is not legal for parser type {type(parser)}')
-        parser.verify_shift()
+        return parser.can_shift()
 
     def execute_on(self, parser) -> None:
         from rnng.models import DiscriminativeRnnGrammar
@@ -75,8 +75,8 @@ class ReduceAction(Action):
     def __hash__(self) -> int:
         return hash(str(self))
 
-    def verify_legal_on(self, parser) -> None:
-        parser.verify_reduce()
+    def is_legal_on(self, parser) -> bool:
+        return parser.can_reduce()
 
     def execute_on(self, parser) -> None:
         parser.reduce()
@@ -103,8 +103,8 @@ class NonTerminalAction(Action):
     def __hash__(self) -> int:
         return hash(str(self))
 
-    def verify_legal_on(self, parser) -> None:
-        parser.verify_push_non_terminal()
+    def is_legal_on(self, parser) -> bool:
+        return parser.can_push_non_terminal()
 
     def execute_on(self, parser) -> None:
         parser.push_non_terminal(self.label)
@@ -131,7 +131,7 @@ class GenerateAction(Action):
     def __hash__(self) -> int:
         return hash(str(self))
 
-    def verify_legal_on(self, parser) -> None:
+    def is_legal_on(self, parser) -> bool:
         raise NotImplementedError('generative RNNG is not implemented yet')
 
     def execute_on(self, parser) -> None:

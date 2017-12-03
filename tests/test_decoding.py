@@ -38,7 +38,7 @@ def test_greedy_decode(mocker):
     retvals = [Variable(torch.zeros(len(action_store)).scatter_(0, torch.LongTensor([action_store[a]]), 1))
                 for a in correct_actions]
     parser = DiscriminativeRnnGrammar(word2id, pos2id, nt2id, action_store)
-    parser.start(list(zip(words, pos_tags)))
+    parser.initialise_stacks_and_buffers(list(zip(words, pos_tags)))
     mocker.patch.object(parser, 'forward', side_effect=retvals)
 
     result = greedy_decode(parser)

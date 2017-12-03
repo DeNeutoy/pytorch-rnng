@@ -192,12 +192,12 @@ class TestDiscRNNGrammar:
         with pytest.raises(ValueError):
             DiscriminativeRnnGrammar(self.word2id, self.pos2id, nt2id, self.action_store)
 
-    def test_start(self):
+    def test_initialise_stacks_and_buffers(self):
         words = ['John', 'loves', 'Mary']
         pos_tags = ['NNP', 'VBZ', 'NNP']
         parser = DiscriminativeRnnGrammar(self.word2id, self.pos2id, self.nt2id, self.action_store)
 
-        parser.start(list(zip(words, pos_tags)))
+        parser.initialise_stacks_and_buffers(list(zip(words, pos_tags)))
 
         assert len(parser.stack_buffer) == 0
         assert parser.input_buffer == words
@@ -205,26 +205,26 @@ class TestDiscRNNGrammar:
         assert not parser.finished
         assert parser.started
 
-    def test_start_with_empty_tagged_words(self):
+    def test_initialise_with_empty_tagged_words(self):
         parser = DiscriminativeRnnGrammar(self.word2id, self.pos2id, self.nt2id, self.action_store)
 
         with pytest.raises(ValueError):
-            parser.start([])
+            parser.initialise_stacks_and_buffers([])
 
-    def test_start_with_invalid_word_or_pos(self):
+    def test_initalise_with_invalid_word_or_pos(self):
         parser = DiscriminativeRnnGrammar(self.word2id, self.pos2id, self.nt2id, self.action_store)
 
         with pytest.raises(ValueError):
-            parser.start([('Bob', 'NNP')])
+            parser.initialise_stacks_and_buffers([('Bob', 'NNP')])
 
         with pytest.raises(ValueError):
-            parser.start([('John', 'VBD')])
+            parser.initialise_stacks_and_buffers([('John', 'VBD')])
 
     def test_do_non_terminal_action(self):
         words = ['John', 'loves', 'Mary']
         pos_tags = ['NNP', 'VBZ', 'NNP']
         parser = DiscriminativeRnnGrammar(self.word2id, self.pos2id, self.nt2id, self.action_store)
-        parser.start(list(zip(words, pos_tags)))
+        parser.initialise_stacks_and_buffers(list(zip(words, pos_tags)))
         prev_input_buffer = parser.input_buffer
 
         parser.push_non_terminal('S')
@@ -245,14 +245,14 @@ class TestDiscRNNGrammar:
         parser = DiscriminativeRnnGrammar(self.word2id, self.pos2id, self.nt2id, self.action_store)
 
         # Buffer is empty
-        parser.start(list(zip(words, pos_tags)))
+        parser.initialise_stacks_and_buffers(list(zip(words, pos_tags)))
         parser.push_non_terminal('S')
         parser.shift()
         with pytest.raises(IllegalActionError):
             parser.push_non_terminal('NP')
 
         # More than 100 open nonterminals
-        parser.start(list(zip(words, pos_tags)))
+        parser.initialise_stacks_and_buffers(list(zip(words, pos_tags)))
         for i in range(100):
             parser.push_non_terminal('S')
         with pytest.raises(IllegalActionError):
@@ -262,7 +262,7 @@ class TestDiscRNNGrammar:
         words = ['John']
         pos_tags = ['NNP']
         parser = DiscriminativeRnnGrammar(self.word2id, self.pos2id, self.nt2id, self.action_store)
-        parser.start(list(zip(words, pos_tags)))
+        parser.initialise_stacks_and_buffers(list(zip(words, pos_tags)))
 
         with pytest.raises(KeyError):
             parser.push_non_terminal('asdf')
@@ -275,7 +275,7 @@ class TestDiscRNNGrammar:
         words = ['John']
         pos_tags = ['NNP']
         parser = DiscriminativeRnnGrammar(self.word2id, self.pos2id, self.nt2id, action_store)
-        parser.start(list(zip(words, pos_tags)))
+        parser.initialise_stacks_and_buffers(list(zip(words, pos_tags)))
 
         with pytest.raises(KeyError):
             parser.push_non_terminal('S')
@@ -284,7 +284,7 @@ class TestDiscRNNGrammar:
         words = ['John', 'loves', 'Mary']
         pos_tags = ['NNP', 'VBZ', 'NNP']
         parser = DiscriminativeRnnGrammar(self.word2id, self.pos2id, self.nt2id, self.action_store)
-        parser.start(list(zip(words, pos_tags)))
+        parser.initialise_stacks_and_buffers(list(zip(words, pos_tags)))
         parser.push_non_terminal('S')
         parser.push_non_terminal('NP')
 
@@ -304,12 +304,12 @@ class TestDiscRNNGrammar:
         parser = DiscriminativeRnnGrammar(self.word2id, self.pos2id, self.nt2id, self.action_store)
 
         # No open nonterminal
-        parser.start(list(zip(words, pos_tags)))
+        parser.initialise_stacks_and_buffers(list(zip(words, pos_tags)))
         with pytest.raises(IllegalActionError):
             parser.shift()
 
         # Buffer is empty
-        parser.start(list(zip(words, pos_tags)))
+        parser.initialise_stacks_and_buffers(list(zip(words, pos_tags)))
         parser.push_non_terminal('S')
         parser.shift()
         with pytest.raises(IllegalActionError):
@@ -319,7 +319,7 @@ class TestDiscRNNGrammar:
         words = ['John', 'loves', 'Mary']
         pos_tags = ['NNP', 'VBZ', 'NNP']
         parser = DiscriminativeRnnGrammar(self.word2id, self.pos2id, self.nt2id, self.action_store)
-        parser.start(list(zip(words, pos_tags)))
+        parser.initialise_stacks_and_buffers(list(zip(words, pos_tags)))
         parser.push_non_terminal('S')
         parser.push_non_terminal('NP')
         parser.shift()
@@ -344,13 +344,13 @@ class TestDiscRNNGrammar:
         parser = DiscriminativeRnnGrammar(self.word2id, self.pos2id, self.nt2id, self.action_store)
 
         # Top of stack is an open nonterminal
-        parser.start(list(zip(words, pos_tags)))
+        parser.initialise_stacks_and_buffers(list(zip(words, pos_tags)))
         parser.push_non_terminal('S')
         with pytest.raises(IllegalActionError):
             parser.reduce()
 
         # Buffer is not empty and REDUCE will finish parsing
-        parser.start(list(zip(words, pos_tags)))
+        parser.initialise_stacks_and_buffers(list(zip(words, pos_tags)))
         parser.push_non_terminal('S')
         parser.shift()
         with pytest.raises(IllegalActionError):
@@ -370,7 +370,7 @@ class TestDiscRNNGrammar:
         words = ['John', 'loves', 'Mary']
         pos_tags = ['NNP', 'VBZ', 'NNP']
         parser = DiscriminativeRnnGrammar(self.word2id, self.pos2id, self.nt2id, self.action_store)
-        parser.start(list(zip(words, pos_tags)))
+        parser.initialise_stacks_and_buffers(list(zip(words, pos_tags)))
         parser.push_non_terminal('S')
         parser.push_non_terminal('NP')
         parser.shift()
@@ -387,7 +387,7 @@ class TestDiscRNNGrammar:
         words = ['John', 'loves', 'Mary']
         pos_tags = ['NNP', 'VBZ', 'NNP']
         parser = DiscriminativeRnnGrammar(self.word2id, self.pos2id, self.nt2id, self.action_store)
-        parser.start(list(zip(words, pos_tags)))
+        parser.initialise_stacks_and_buffers(list(zip(words, pos_tags)))
 
         action_probs = parser().exp().data
 
@@ -410,7 +410,7 @@ class TestDiscRNNGrammar:
         exp_parse_tree = Tree('S', [Tree('NP', ['John']),
                                     Tree('VP', ['loves', Tree('NP', ['Mary'])])])
 
-        parser.start(list(zip(words, pos_tags)))
+        parser.initialise_stacks_and_buffers(list(zip(words, pos_tags)))
         parser.push_non_terminal('S')
         parser.push_non_terminal('NP')
         parser.shift()

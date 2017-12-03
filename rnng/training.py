@@ -16,7 +16,7 @@ from rnng.utils import MeanAggregate
 
 
 def run_batch(parser: RnnGrammar, oracle: Oracle) -> Variable:
-    parser.start(list(zip(oracle.words, oracle.pos_tags)))
+    parser.initialise_stacks_and_buffers(list(zip(oracle.words, oracle.pos_tags)))
     log_probs = []
     for action in oracle.actions:
         log_probs.append(parser().view(1, -1))

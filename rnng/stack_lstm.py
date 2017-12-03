@@ -55,6 +55,10 @@ class StackLSTM(nn.Module, Sized):
         else:
             raise EmptyStackError()
 
+    def reset(self) -> None:
+        self._state_history = [(self.h0, self.c0)]
+        self._output_history = []  # type: List[Variable]
+
     @property
     def top(self) -> Variable:
         # outputs: hidden_size

@@ -32,7 +32,7 @@ def log_softmax(inputs: Variable, restrictions=None) -> Variable:
 class StackElement(NamedTuple):
     subtree: Union[Word, Tree]
     emb: Variable
-    is_open_nt: bool
+    is_open_non_terminal: bool
 
 
 class IllegalActionError(Exception):
@@ -61,7 +61,7 @@ class RnnGrammar(nn.Module, metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    def start(self, tagged_words: Sequence[Tuple[Word, POSTag]]) -> None:
+    def initialise_stacks_and_buffers(self, tagged_words: Sequence[Tuple[Word, POSTag]]) -> None:
         pass
 
     @abc.abstractmethod
@@ -73,11 +73,11 @@ class RnnGrammar(nn.Module, metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    def verify_push_non_terminal(self) -> None:
+    def can_push_non_terminal(self) -> bool:
         pass
 
     @abc.abstractmethod
-    def verify_reduce(self) -> None:
+    def can_reduce(self) -> bool:
         pass
 
 
@@ -209,14 +209,14 @@ class DiscriminativeRnnGrammar(RnnGrammar):
     @property
     def finished(self) -> bool:
         return (len(self._stack) == 1
-                and not self._stack[0].is_open_nt
+                and not self._stack[0].is_open_non_terminal
                 and len(self._buffer) == 0)
 
     @property
     def started(self) -> bool:
         return self._started
 
-    def start(self, tagged_words: Sequence[Tuple[Word, POSTag]]) -> None:
+    def initialise_stacks_and_buffers(self, tagged_words: Sequence[Tuple[Word, POSTag]]) -> None:
         if len(tagged_words) == 0:
             raise ValueError('parser cannot be started with empty sequence of words')
         for word, pos in tagged_words:
@@ -231,12 +231,9 @@ class DiscriminativeRnnGrammar(RnnGrammar):
         self._num_open_non_terminals = 0
         self._started = False
 
-        while len(self.stack_lstm) > 0:
-            self.stack_lstm.pop()
-        while len(self.buffer_lstm) > 0:
-            self.buffer_lstm.pop()
-        while len(self.history_lstm) > 0:
-            self.history_lstm.pop()
+        self.history_lstm.reset()
+        self.stack_lstm.reset()
+        self.buffer_lstm.reset()
 
         # Feed guards as inputs
         self.stack_lstm.push(self.stack_guard)
@@ -261,17 +258,20 @@ class DiscriminativeRnnGrammar(RnnGrammar):
         if action not in self.action_store:
             raise KeyError(f"unknown action '{action}' encountered")
 
-        self.verify_push_non_terminal()
+        if not self.can_push_non_terminal():
+            raise IllegalActionError(f"Illegal NT({nonterm}) action taken.")
         self._push_non_terminal(nonterm)
         self._append_history(action)
 
     def shift(self) -> None:
-        self.verify_shift()
+        if not self.can_shift():
+            raise IllegalActionError("Illegal SHIFT action attempted.")
         self._shift()
         self._append_history(ShiftAction())
 
     def reduce(self) -> None:
-        self.verify_reduce()
+        if not self.can_reduce():
+            raise IllegalActionError("Illegal REDUCE action attempted.")
         self._reduce()
         self._append_history(ReduceAction())
 
@@ -304,21 +304,21 @@ class DiscriminativeRnnGrammar(RnnGrammar):
         volatile = not self.training
         word_indices = Variable(self._new(word_ids).long().view(1, -1), volatile=volatile)
         pos_indices = Variable(self._new(pos_ids).long().view(1, -1), volatile=volatile)
-        nt_indices = Variable(self._new(nt_ids).long().view(1, -1), volatile=volatile)
+        non_terminal_indices = Variable(self._new(nt_ids).long().view(1, -1), volatile=volatile)
         action_indices = Variable(self._new(action_ids).long().view(1, -1), volatile=volatile)
 
-        word_embs = self.word_embs(word_indices).view(-1, self.word_dim)
-        pos_embs = self.pos_embs(pos_indices).view(-1, self.pos_dim)
-        nt_embs = self.nt_embs(nt_indices).view(-1, self.non_terminal_dim)
-        action_embs = self.action_embs(action_indices).view(-1, self.action_dim)
+        word_embeddings = self.word_embs(word_indices).view(-1, self.word_dim)
+        pos_embeddings = self.pos_embs(pos_indices).view(-1, self.pos_dim)
+        non_terminal_embeddings = self.nt_embs(non_terminal_indices).view(-1, self.non_terminal_dim)
+        action_embeddings = self.action_embs(action_indices).view(-1, self.action_dim)
 
-        final_word_embs = self.word2lstm(torch.cat([word_embs, pos_embs], dim=1))
-        final_nt_embs = self.nt2lstm(nt_embs)
-        final_action_embs = self.action2lstm(action_embs)
+        final_word_embeddings = self.word2lstm(torch.cat([word_embeddings, pos_embeddings], dim=1))
+        final_non_terminal_embeddings = self.nt2lstm(non_terminal_embeddings)
+        final_action_embeddings = self.action2lstm(action_embeddings)
 
-        self._word_emb = dict(zip(word_ids, final_word_embs))
-        self._nt_emb = final_nt_embs
-        self._action_emb = final_action_embs
+        self._word_emb = dict(zip(word_ids, final_word_embeddings))
+        self._nt_emb = final_non_terminal_embeddings
+        self._action_emb = final_action_embeddings
 
     def _append_history(self, action: Action) -> None:
         self._history.append(action)
@@ -340,8 +340,11 @@ class DiscriminativeRnnGrammar(RnnGrammar):
         self.stack_lstm.push(self._word_emb[wid])
 
     def _reduce(self) -> None:
+
+        # Pop all the children of the non-terminal off
+        # the stack.
         children = []
-        while len(self._stack) > 0 and not self._stack[-1].is_open_nt:
+        while len(self._stack) > 0 and not self._stack[-1].is_open_non_terminal:
             children.append(self._stack.pop()[:-1])
         assert len(children) > 0
         assert len(self._stack) > 0
@@ -352,31 +355,40 @@ class DiscriminativeRnnGrammar(RnnGrammar):
         assert isinstance(open_nt.subtree, Tree)
         parent_subtree = cast(Tree, open_nt.subtree)
         parent_subtree.extend(child_subtrees)
-        composed_emb = self._compose(open_nt.emb, child_embs)
-        self._stack.append(StackElement(parent_subtree, composed_emb, False))
+        composed_embedding = self._get_composed_representation(open_nt.emb, child_embs)
+        self._stack.append(StackElement(parent_subtree, composed_embedding, False))
         self._num_open_non_terminals -= 1
         assert self._num_open_non_terminals >= 0
 
-    def _push_non_terminal(self, nonterm: NonTerminalLabel) -> None:
-        nid = self.nt2id[nonterm]
+    def _push_non_terminal(self, nonterminal: NonTerminalLabel) -> None:
+        nid = self.nt2id[nonterminal]
         assert isinstance(self._nt_emb, Variable)
         assert 0 <= nid < self._nt_emb.size(0)
-        self._stack.append(
-            StackElement(Tree(nonterm, []), self._nt_emb[nid], True))
+        self._stack.append(StackElement(Tree(nonterminal, []),
+                                        self._nt_emb[nid],
+                                        True))
         self.stack_lstm.push(self._nt_emb[nid])
         self._num_open_non_terminals += 1
 
-    def _compose(self, open_nt_emb: Variable, children_embs: Sequence[Variable]) -> Variable:
-        assert open_nt_emb.dim() == 1
-        assert all(x.dim() == 1 for x in children_embs)
-        assert open_nt_emb.size(0) == self.input_dim
-        assert all(x.size(0) == self.input_dim for x in children_embs)
+    def _get_composed_representation(self,
+                                     open_non_terminal_embedding: Variable,
+                                     children_embeddings: Sequence[Variable]) -> Variable:
+        """
+        Given a non-terminal symbol and it's children, create a representation
+        of the completed non-terminal by encoding the children using a Bi-LSTM.
+        The embedding of the non-terminal symbol is pre-pended to the sequence
+        before the BiLSTM is applied.
+        """
+        assert open_non_terminal_embedding.dim() == 1
+        assert all(x.dim() == 1 for x in children_embeddings)
+        assert open_non_terminal_embedding.size(0) == self.input_dim
+        assert all(x.size(0) == self.input_dim for x in children_embeddings)
 
-        fwd_input = [open_nt_emb]
-        bwd_input = [open_nt_emb]
-        for i in range(len(children_embs)):
-            fwd_input.append(children_embs[i])
-            bwd_input.append(children_embs[-i - 1])
+        fwd_input = [open_non_terminal_embedding]
+        bwd_input = [open_non_terminal_embedding]
+        for i in range(len(children_embeddings)):
+            fwd_input.append(children_embeddings[i])
+            bwd_input.append(children_embeddings[-i - 1])
 
         fwd_input = torch.cat(fwd_input).view(-1, 1, self.input_dim)
         bwd_input = torch.cat(bwd_input).view(-1, 1, self.input_dim)
@@ -386,19 +398,15 @@ class DiscriminativeRnnGrammar(RnnGrammar):
         bwd_emb = F.dropout(bwd_output[-1, 0], p=self.dropout, training=self.training)
         return self.fwdbwd2composed(torch.cat([fwd_emb, bwd_emb]).view(1, -1)).view(-1)
 
-    def _get_illegal_action_ids(self):
+    def _get_illegal_action_ids(self) -> Variable:
         illegal_action_ids = [aid for aid in range(self.num_actions)
                               if not self._is_legal(aid)]
         return self._new(illegal_action_ids).long()
 
     def _is_legal(self, aid: ActionId) -> bool:
         assert 0 <= aid < len(self.action_store)
-        try:
-            self.action_store.get_by_id(aid).verify_legal_on(self)
-        except IllegalActionError:
-            return False
-        else:
-            return True
+
+        return self.action_store.get_by_id(aid).is_legal_on(self)
 
     def _verify_action(self) -> None:
         if not self._started:
@@ -406,31 +414,40 @@ class DiscriminativeRnnGrammar(RnnGrammar):
         if self.finished:
             raise RuntimeError('cannot do more action when parser is finished')
 
-    def verify_push_non_terminal(self) -> None:
+    def can_push_non_terminal(self) -> bool:
         self._verify_action()
         if len(self._buffer) == 0:
-            raise IllegalActionError('cannot do NT(X) when input buffer is empty')
+            # cannot do NT(X) when input buffer is empty
+            return False
         if self._num_open_non_terminals >= self.MAX_OPEN_NON_TERMINALS:
-            raise IllegalActionError('max number of open nonterminals is reached')
+            # max number of open nonterminals is reached
+            return False
+        return True
 
-    def verify_shift(self) -> None:
+    def can_shift(self) -> bool:
         self._verify_action()
         if len(self._buffer) == 0:
-            raise IllegalActionError('cannot SHIFT when input buffer is empty')
+            # cannot SHIFT when input buffer is empty
+            return False
         if self._num_open_non_terminals == 0:
-            raise IllegalActionError('cannot SHIFT when no open nonterminal exists')
+            # cannot SHIFT when no open nonterminal exists
+            return False
+        return True
 
-    def verify_reduce(self) -> None:
+    def can_reduce(self) -> bool:
         self._verify_action()
-        last_is_nt = len(self._history) > 0 and isinstance(self._history[-1], NonTerminalAction)
-        if last_is_nt:
-            raise IllegalActionError(
-                'cannot REDUCE when top of stack is an open nonterminal')
+        last_is_non_terminal = (len(self._history) > 0 and
+                                isinstance(self._history[-1], NonTerminalAction))
+        if last_is_non_terminal:
+            # cannot REDUCE when top of stack is an open nonterminal
+            return False
         if self._num_open_non_terminals < 2 and len(self._buffer) > 0:
-            raise IllegalActionError(
-                'cannot REDUCE because there are words not SHIFT-ed yet')
+            # cannot REDUCE because there are words not SHIFT-ed yet
+            return False
 
-    def reset_parameters(self) -> None:
+        return True
+
+    def reset_parameters(self) -> bool:
         # Stack LSTMs
         for name in ['stack', 'buffer', 'history']:
             lstm = getattr(self, f'{name}_lstm')
