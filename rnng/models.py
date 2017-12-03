@@ -179,10 +179,10 @@ class DiscriminativeRnnGrammar(RnnGrammar):
         self.summary2actions = nn.Linear(hidden_dim, num_actions)
 
         # Embeddings
-        self.word_embs = nn.Embedding(num_words, word_dim)
-        self.pos_embs = nn.Embedding(num_pos, pos_dim)
-        self.nt_embs = nn.Embedding(num_non_terminals, non_terminal_dim)
-        self.action_embs = nn.Embedding(num_actions, action_dim)
+        self.word_embedding = nn.Embedding(num_words, word_dim)
+        self.pos_embedding = nn.Embedding(num_pos, pos_dim)
+        self.non_terminal_embedding = nn.Embedding(num_non_terminals, non_terminal_dim)
+        self.action_embedding = nn.Embedding(num_actions, action_dim)
 
         # Guard parameters for stack, buffer, and action history
         self.stack_guard = nn.Parameter(torch.Tensor(input_dim))
@@ -307,10 +307,10 @@ class DiscriminativeRnnGrammar(RnnGrammar):
         non_terminal_indices = Variable(self._new(nt_ids).long().view(1, -1), volatile=volatile)
         action_indices = Variable(self._new(action_ids).long().view(1, -1), volatile=volatile)
 
-        word_embeddings = self.word_embs(word_indices).view(-1, self.word_dim)
-        pos_embeddings = self.pos_embs(pos_indices).view(-1, self.pos_dim)
-        non_terminal_embeddings = self.nt_embs(non_terminal_indices).view(-1, self.non_terminal_dim)
-        action_embeddings = self.action_embs(action_indices).view(-1, self.action_dim)
+        word_embeddings = self.word_embedding(word_indices).view(-1, self.word_dim)
+        pos_embeddings = self.pos_embedding(pos_indices).view(-1, self.pos_dim)
+        non_terminal_embeddings = self.non_terminal_embedding(non_terminal_indices).view(-1, self.non_terminal_dim)
+        action_embeddings = self.action_embedding(action_indices).view(-1, self.action_dim)
 
         final_word_embeddings = self.word2lstm(torch.cat([word_embeddings, pos_embeddings], dim=1))
         final_non_terminal_embeddings = self.nt2lstm(non_terminal_embeddings)
